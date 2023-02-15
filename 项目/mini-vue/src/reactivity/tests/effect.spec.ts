@@ -13,9 +13,9 @@ describe("effect", () => {
     expect(currentAge).toBe(21);
 
     //update
-    // userInfo.age++;
-    // expect(currentAge).toBe(22);
-    // userInfo.age++;
-    // expect(currentAge).toBe(22);
+    userInfo.age++;
+    expect(currentAge).toBe(22);
+    userInfo.age++;
+    expect(currentAge).toBe(23);
   });
 });
