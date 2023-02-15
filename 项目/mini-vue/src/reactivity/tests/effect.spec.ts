@@ -18,4 +18,14 @@ describe("effect", () => {
     userInfo.age++;
     expect(currentAge).toBe(23);
   });
+
+  it("should return runner when call effect", () => {
+    let foo = 0;
+    const fn = effect(() => {
+      return ++foo;
+    });
+
+    expect(foo).toBe(1);
+    expect(fn()).toBe(2);
+  });
 });

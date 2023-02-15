@@ -5,16 +5,17 @@ class ReactiveEffect {
   }
   run() {
     activeEffect = this;
-    this.#fn?.();
-    activeEffect = undefined;
+    return this.#fn?.();
   }
 }
 
 let activeEffect: ReactiveEffect | undefined;
 
 export function effect(fn: Function) {
-  let _efect = new ReactiveEffect(fn);
-  _efect.run();
+  let _effect = new ReactiveEffect(fn);
+  _effect.run();
+  activeEffect = undefined;
+  return _effect.run.bind(_effect);
 }
 
 const targetMap: Map<
