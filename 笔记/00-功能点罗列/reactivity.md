@@ -1,11 +1,17 @@
 ### reactive
 
+#### reactive
+
 * getter
   * track
 * setter
   * trigger
 
+#### readonly
 
+* getter（不需要track）
+* setter（不需要真实地进行Reflect.set，在return之前抛出警告）
+* 实现 readonly 后，可以将 reactive 与 readonly 的代码进行重构，将公共部分抽离
 
 ### effecct
 
