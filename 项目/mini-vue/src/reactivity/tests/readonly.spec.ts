@@ -17,4 +17,20 @@ describe("readonly", () => {
     wrapped.foo++;
     expect(console.warn).toBeCalled();
   });
+
+  it("nested readonly", () => {
+    const raw = {
+      nested: { foo: 1 },
+      array: [{ name: "Ashun", hobbies: ["coding", "music"] }],
+    };
+    const wrapped = readonly(raw);
+    expect(isReadonly(raw)).toBe(false);
+    expect(isReadonly(wrapped)).toBe(true);
+    expect(isReadonly(wrapped.nested)).toBe(true);
+    expect(isReadonly(wrapped.array)).toBe(true);
+    expect(isReadonly(wrapped.array[0])).toBe(true);
+    expect(isReadonly(wrapped.array[0].hobbies)).toBe(true);
+    expect(isReadonly(wrapped.array[0].name)).toBe(false);
+    expect(isReadonly(wrapped.nested.foo)).toBe(false);
+  });
 });

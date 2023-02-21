@@ -6,8 +6,9 @@ const get = createGetter();
 const set = createSetter();
 
 const readonlyGet = createGetter(true);
+const shallowReadonlyGet = createGetter(true, true);
 
-export function createGetter(isReadonly = false) {
+export function createGetter(isReadonly = false, shallow = false) {
   return function (target, propName: string | symbol) {
     if (propName === ReactiveFlags.IS_REACTIVE) {
       return !isReadonly;
@@ -19,6 +20,11 @@ export function createGetter(isReadonly = false) {
     if (!isReadonly) track(target, propName);
 
     const res = Reflect.get(target, propName);
+
+    if (shallow) {
+      return res;
+    }
+
     if (isObject(res)) {
       return isReadonly ? readonly(res) : reactive(res);
     }
@@ -45,4 +51,9 @@ export const readonlyHandler = {
     console.warn(`key:${String(propName)} set 失败,因为target 是 readonly`);
     return true;
   },
+};
+
+export const shallowReadonlyHandler = {
+  get: shallowReadonlyGet,
+  set: readonlyHandler.set,
 };
