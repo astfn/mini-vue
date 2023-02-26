@@ -23,6 +23,8 @@
 * 实现 readonly 后，可以将 reactive 与 readonly 的代码进行重构，将公共部分抽离
 * 衍生功能点
   * isReadonly（通过构建一个虚拟的key实现）
+* 边界情况
+  - [ ] 对象深层代理
 
 ### effecct
 
@@ -33,3 +35,16 @@
 * stop 函数；onStop option
 * 边界情况
   - [ ] 嵌套effect
+
+### ref
+
+* 实现 class RefImpl
+  * get value (track)
+  * set value (trigger)
+    * isChanged
+* 衍生功能点
+  * isRef
+  * unRef
+* 边界情况
+  * 传入 Object，转化为 reactive
+  * 由于 value 可能是 reactive，所以在进行 isChanged 比较时，需要与未经处理的 rawValue 比较
