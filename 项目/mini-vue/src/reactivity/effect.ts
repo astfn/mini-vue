@@ -78,7 +78,7 @@ export function track(target, key: string | symbol) {
 
 export function trigger(target, key: string | symbol) {
   let depsMap = targetMap.get(target)!;
-  let deps = depsMap.get(key);
+  let deps = depsMap?.get(key);
   deps?.forEach((effect) => {
     if (effect.scheduler) {
       effect.scheduler();
