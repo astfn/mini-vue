@@ -11,7 +11,7 @@ function cleanupEffect(effect: ReactiveEffect) {
   effect.depsMap?.forEach((dep) => dep.delete(effect));
 }
 
-class ReactiveEffect {
+export class ReactiveEffect {
   #fn: Function | undefined;
   scheduler: Function | undefined;
   depsMap: Map<string | symbol, Set<ReactiveEffect>> | undefined;
