@@ -1,5 +1,5 @@
 export const App = {
-  redner(h) {
+  render(h) {
     return h("div", "hi, " + this.message);
   },
   setup() {
