@@ -1,5 +1,5 @@
 import { createComponentInstance, setupComponent } from "./component";
-import { createVNode } from "./createVNode";
+import { h } from "./h";
 
 export function render(vnode, container) {
   //调用 patch 对虚拟节点进行具体处理
@@ -31,6 +31,6 @@ function mountComponent(vnode, container) {
 }
 
 function setupRenderEffect(instance, container) {
-  const subTree = instance.render(createVNode);
+  const subTree = instance.render(h);
   patch(subTree, container);
 }
