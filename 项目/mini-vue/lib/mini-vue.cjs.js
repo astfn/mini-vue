@@ -1,5 +1,9 @@
 'use strict';
 
+function isObject(target) {
+    return target !== null && typeof target === "object";
+}
+
 function createVNode(type, props, children) {
     const vnode = {
         type,
@@ -57,19 +61,52 @@ function h(type, props, children) {
 
 function render(vnode, container) {
     //调用 patch 对虚拟节点进行具体处理
-    patch(vnode);
+    patch(vnode, container);
 }
 function patch(vnode, container) {
     // 根据 vnode 的类型，来决定是处理 component 还是 element
-    // 目前先实现 processComponent 用于处理 component
-    processComponent(vnode);
+    debugger;
+    if (typeof vnode.type === "string") {
+        procescsElement(vnode, container);
+    }
+    else if (isObject(vnode.type)) {
+        processComponent(vnode, container);
+    }
+}
+function procescsElement(vnode, container) {
+    /**
+     * 主要逻辑有：挂载、更新
+     */
+    //初始化流程，目前只关注挂载过程
+    mountElement(vnode, container);
+}
+function mountElement(vnode, container) {
+    const el = document.createElement(vnode.type);
+    const { children, props } = vnode;
+    //props
+    Object.entries(props).forEach(([key, value]) => {
+        el.setAttribute(key, value);
+    });
+    //children
+    if (typeof children === "string") {
+        el.innerText = children;
+    }
+    else if (children instanceof Array) {
+        mountChildren(vnode, el);
+    }
+    container.appendChild(el);
+}
+function mountChildren(vnode, container) {
+    for (const vnodeItem of vnode.children) {
+        patch(vnodeItem, container);
+    }
 }
 function processComponent(vnode, container) {
     /**
      * 主要逻辑有：挂载组件、更新组件
      */
     //初始化流程，目前只关注挂载组件过程
-    mountComponent(vnode);
+    mountComponent(vnode, container);
 }
 function mountComponent(vnode, container) {
     /**
@@ -78,11 +115,11 @@ function mountComponent(vnode, container) {
      */
     const instance = createComponentInstance(vnode);
     setupComponent(instance);
-    setupRenderEffect(instance);
+    setupRenderEffect(instance, container);
 }
 function setupRenderEffect(instance, container) {
     const subTree = instance.render(h);
-    patch(subTree);
+    patch(subTree, container);
 }
 
 function createApp(rootComponent) {
@@ -91,9 +128,18 @@ function createApp(rootComponent) {
             //1. 先将组件统一转化为 vnode，后续都会基于 vnode 进行各种操作
             //2. 创建组件实例，并 render
             const vnode = createVNode(rootComponent);
-            render(vnode);
+            const targetRootContainer = getRootContainer(rootContainer);
+            render(vnode, targetRootContainer);
         },
     };
+}
+function getRootContainer(rootContainer) {
+    if (typeof rootContainer === "string") {
+        return document.querySelector(rootContainer);
+    }
+    else if (isObject(rootContainer)) {
+        return rootContainer;
+    }
 }
 
 exports.createApp = createApp;

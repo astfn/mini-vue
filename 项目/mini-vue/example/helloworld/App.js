@@ -1,6 +1,9 @@
 export const App = {
   render(h) {
-    return h("div", "hi, " + this.message);
+    return h("div", { id: "root" }, [
+      h("span", { class: "red" }, "Ashun "),
+      h("span", { class: "green" }, " Ashuntefannao"),
+    ]);
   },
   setup() {
     return {

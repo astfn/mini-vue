@@ -1,3 +1,4 @@
+import { isObject } from "../shared/index";
 import { createComponentInstance, setupComponent } from "./component";
 import { h } from "./h";
 
@@ -8,8 +9,45 @@ export function render(vnode, container) {
 
 function patch(vnode, container) {
   // 根据 vnode 的类型，来决定是处理 component 还是 element
-  // 目前先实现 processComponent 用于处理 component
-  processComponent(vnode, container);
+  debugger;
+  if (typeof vnode.type === "string") {
+    procescsElement(vnode, container);
+  } else if (isObject(vnode.type)) {
+    processComponent(vnode, container);
+  }
+}
+
+function procescsElement(vnode, container) {
+  /**
+   * 主要逻辑有：挂载、更新
+   */
+  //初始化流程，目前只关注挂载过程
+  mountElement(vnode, container);
+}
+
+function mountElement(vnode, container) {
+  const el = document.createElement(vnode.type);
+  const { children, props } = vnode;
+
+  //props
+  Object.entries(props).forEach(([key, value]) => {
+    el.setAttribute(key, value);
+  });
+
+  //children
+  if (typeof children === "string") {
+    el.innerText = children;
+  } else if (children instanceof Array) {
+    mountChildren(vnode, el);
+  }
+
+  container.appendChild(el);
+}
+
+function mountChildren(vnode, container) {
+  for (const vnodeItem of vnode.children) {
+    patch(vnodeItem, container);
+  }
 }
 
 function processComponent(vnode, container) {
