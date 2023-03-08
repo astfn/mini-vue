@@ -1,4 +1,5 @@
 import { isObject } from "../shared/index";
+import { ShapFlags } from "../shared/ShapFlags";
 import { createComponentInstance, setupComponent } from "./component";
 import { h } from "./h";
 
@@ -8,11 +9,11 @@ export function render(vnode, container) {
 }
 
 function patch(vnode, container) {
+  const { shapFlag } = vnode;
   // 根据 vnode 的类型，来决定是处理 component 还是 element
-  debugger;
-  if (typeof vnode.type === "string") {
+  if (shapFlag & ShapFlags.ELEMENT) {
     procescsElement(vnode, container);
-  } else if (isObject(vnode.type)) {
+  } else if (shapFlag & ShapFlags.STATEFUL_COMPONENT) {
     processComponent(vnode, container);
   }
 }
@@ -27,7 +28,7 @@ function procescsElement(vnode, container) {
 
 function mountElement(vnode, container) {
   const el = document.createElement(vnode.type);
-  const { children, props } = vnode;
+  const { children, props, shapFlag } = vnode;
 
   //props
   Object.entries(props).forEach(([key, value]) => {
@@ -35,9 +36,9 @@ function mountElement(vnode, container) {
   });
 
   //children
-  if (typeof children === "string") {
+  if (shapFlag & ShapFlags.TEXT_CHILDREN) {
     el.innerText = children;
-  } else if (children instanceof Array) {
+  } else if (shapFlag & ShapFlags.ARRAY_CHILDREN) {
     mountChildren(vnode, el);
   }
 

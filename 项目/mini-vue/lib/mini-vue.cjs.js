@@ -4,13 +4,33 @@ function isObject(target) {
     return target !== null && typeof target === "object";
 }
 
+var ShapFlags;
+(function (ShapFlags) {
+    ShapFlags[ShapFlags["ELEMENT"] = 1] = "ELEMENT";
+    ShapFlags[ShapFlags["STATEFUL_COMPONENT"] = 2] = "STATEFUL_COMPONENT";
+    ShapFlags[ShapFlags["TEXT_CHILDREN"] = 4] = "TEXT_CHILDREN";
+    ShapFlags[ShapFlags["ARRAY_CHILDREN"] = 8] = "ARRAY_CHILDREN";
+})(ShapFlags || (ShapFlags = {}));
+
 function createVNode(type, props, children) {
     const vnode = {
         type,
         props,
         children,
+        shapFlag: getShapFlag(type),
     };
+    debugger;
+    //标记 children 类型
+    if (typeof children === "string")
+        vnode.shapFlag |= ShapFlags.TEXT_CHILDREN;
+    if (Array.isArray(children))
+        vnode.shapFlag |= ShapFlags.ARRAY_CHILDREN;
     return vnode;
+}
+function getShapFlag(type) {
+    return typeof type === "string"
+        ? ShapFlags.ELEMENT
+        : ShapFlags.STATEFUL_COMPONENT;
 }
 
 function createComponentInstance(vnode) {
@@ -64,12 +84,12 @@ function render(vnode, container) {
     patch(vnode, container);
 }
 function patch(vnode, container) {
+    const { shapFlag } = vnode;
     // 根据 vnode 的类型，来决定是处理 component 还是 element
-    debugger;
-    if (typeof vnode.type === "string") {
+    if (shapFlag & ShapFlags.ELEMENT) {
         procescsElement(vnode, container);
     }
-    else if (isObject(vnode.type)) {
+    else if (shapFlag & ShapFlags.STATEFUL_COMPONENT) {
         processComponent(vnode, container);
     }
 }
@@ -82,16 +102,16 @@ function procescsElement(vnode, container) {
 }
 function mountElement(vnode, container) {
     const el = document.createElement(vnode.type);
-    const { children, props } = vnode;
+    const { children, props, shapFlag } = vnode;
     //props
     Object.entries(props).forEach(([key, value]) => {
         el.setAttribute(key, value);
     });
     //children
-    if (typeof children === "string") {
+    if (shapFlag & ShapFlags.TEXT_CHILDREN) {
         el.innerText = children;
     }
-    else if (children instanceof Array) {
+    else if (shapFlag & ShapFlags.ARRAY_CHILDREN) {
         mountChildren(vnode, el);
     }
     container.appendChild(el);
