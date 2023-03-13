@@ -102,8 +102,15 @@ function mountElement(vnode, container) {
     const el = document.createElement(vnode.type);
     const { children, props, shapFlag } = vnode;
     //props
+    const isOn = (key) => /^on[A-Z]/.test(key);
     Object.entries(props).forEach(([key, value]) => {
-        el.setAttribute(key, value);
+        if (isOn(key)) {
+            const event = key.slice(2).toLocaleLowerCase();
+            el.addEventListener(event, value);
+        }
+        else {
+            el.setAttribute(key, value);
+        }
     });
     //children
     if (shapFlag & ShapFlags.TEXT_CHILDREN) {
