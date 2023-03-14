@@ -7,8 +7,8 @@ export function createVNode(type, props?, children?) {
     props,
     children,
     shapFlag: getShapFlag(type),
+    el: undefined,
   };
-  debugger;
   //标记 children 类型
   if (typeof children === "string") vnode.shapFlag |= ShapFlags.TEXT_CHILDREN;
   if (Array.isArray(children)) vnode.shapFlag |= ShapFlags.ARRAY_CHILDREN;

@@ -27,7 +27,7 @@ function procescsElement(vnode, container) {
 }
 
 function mountElement(vnode, container) {
-  const el = document.createElement(vnode.type);
+  const el = (vnode.el = document.createElement(vnode.type));
   const { children, props, shapFlag } = vnode;
 
   //props
@@ -72,10 +72,11 @@ function mountComponent(vnode, container) {
    */
   const instance = createComponentInstance(vnode);
   setupComponent(instance);
-  setupRenderEffect(instance, container);
+  setupRenderEffect(instance, vnode, container);
 }
 
-function setupRenderEffect(instance, container) {
-  const subTree = instance.render(h);
+function setupRenderEffect(instance, vnode, container) {
+  const subTree = instance.render.call(instance.proxy, h);
   patch(subTree, container);
+  vnode.el = subTree.el;
 }

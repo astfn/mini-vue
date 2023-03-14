@@ -18,8 +18,8 @@ function createVNode(type, props, children) {
         props,
         children,
         shapFlag: getShapFlag(type),
+        el: undefined,
     };
-    debugger;
     //标记 children 类型
     if (typeof children === "string")
         vnode.shapFlag |= ShapFlags.TEXT_CHILDREN;
@@ -37,8 +37,9 @@ function createComponentInstance(vnode) {
     const component = {
         vnode,
         type: vnode.type,
-        setupResult: undefined,
+        setupState: {},
         render: undefined,
+        proxy: undefined,
     };
     return component;
 }
@@ -51,6 +52,15 @@ function setupComponent(instance) {
     setupStatefulComponent(instance);
 }
 function setupStatefulComponent(instance) {
+    instance.proxy = new Proxy({}, {
+        get(_target, key) {
+            const { setupState, vnode } = instance;
+            if (key in setupState)
+                return setupState[key];
+            if (key === "$el")
+                return vnode.el;
+        },
+    });
     const Component = instance.type;
     const { setup } = Component;
     if (setup) {
@@ -64,7 +74,7 @@ function handleSetupResult(instance, setupResult) {
      * function type result
      */
     if (typeof setupResult === "object") {
-        instance.setupResult = setupResult;
+        instance.setupState = setupResult;
     }
     finishComponentSetup(instance);
 }
@@ -101,7 +111,7 @@ function procescsElement(vnode, container) {
     mountElement(vnode, container);
 }
 function mountElement(vnode, container) {
-    const el = document.createElement(vnode.type);
+    const el = (vnode.el = document.createElement(vnode.type));
     const { children, props, shapFlag } = vnode;
     //props
     const isOn = (key) => /^on[A-Z]/.test(key);
@@ -142,11 +152,12 @@ function mountComponent(vnode, container) {
      */
     const instance = createComponentInstance(vnode);
     setupComponent(instance);
-    setupRenderEffect(instance, container);
+    setupRenderEffect(instance, vnode, container);
 }
-function setupRenderEffect(instance, container) {
-    const subTree = instance.render(h);
+function setupRenderEffect(instance, vnode, container) {
+    const subTree = instance.render.call(instance.proxy, h);
     patch(subTree, container);
+    vnode.el = subTree.el;
 }
 
 function createApp(rootComponent) {

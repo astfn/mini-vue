@@ -1,5 +1,7 @@
+window.self = undefined;
 export const App = {
   render(h) {
+    window.self = this;
     return h("div", { id: "root" }, [
       h(
         "span",
