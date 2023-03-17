@@ -65,18 +65,18 @@ function processComponent(vnode, container) {
   mountComponent(vnode, container);
 }
 
-function mountComponent(vnode, container) {
+function mountComponent(initialVnode, container) {
   /**
    * 创建组件实例
    * 对组件实例进行初始化设置
    */
-  const instance = createComponentInstance(vnode);
+  const instance = createComponentInstance(initialVnode);
   setupComponent(instance);
-  setupRenderEffect(instance, vnode, container);
+  setupRenderEffect(instance, initialVnode, container);
 }
 
-function setupRenderEffect(instance, vnode, container) {
+function setupRenderEffect(instance, initialVnode, container) {
   const subTree = instance.render.call(instance.proxy, h);
   patch(subTree, container);
-  vnode.el = subTree.el;
+  initialVnode.el = subTree.el;
 }

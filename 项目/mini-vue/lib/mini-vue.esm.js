@@ -31,6 +31,20 @@ function getShapFlag(type) {
         : ShapFlags.STATEFUL_COMPONENT;
 }
 
+const publicPropertiesMap = {
+    $el: (i) => i.vnode.el,
+};
+const PublicInstanceProxyHandlers = {
+    get({ _: instance }, key) {
+        const { setupState } = instance;
+        if (key in setupState)
+            return setupState[key];
+        const publicGetter = publicPropertiesMap[key];
+        if (publicGetter)
+            return publicGetter(instance);
+    },
+};
+
 function createComponentInstance(vnode) {
     const component = {
         vnode,
@@ -50,15 +64,7 @@ function setupComponent(instance) {
     setupStatefulComponent(instance);
 }
 function setupStatefulComponent(instance) {
-    instance.proxy = new Proxy({}, {
-        get(_target, key) {
-            const { setupState, vnode } = instance;
-            if (key in setupState)
-                return setupState[key];
-            if (key === "$el")
-                return vnode.el;
-        },
-    });
+    instance.proxy = new Proxy({ _: instance }, PublicInstanceProxyHandlers);
     const Component = instance.type;
     const { setup } = Component;
     if (setup) {
@@ -143,19 +149,19 @@ function processComponent(vnode, container) {
     //初始化流程，目前只关注挂载组件过程
     mountComponent(vnode, container);
 }
-function mountComponent(vnode, container) {
+function mountComponent(initialVnode, container) {
     /**
      * 创建组件实例
      * 对组件实例进行初始化设置
      */
-    const instance = createComponentInstance(vnode);
+    const instance = createComponentInstance(initialVnode);
     setupComponent(instance);
-    setupRenderEffect(instance, vnode, container);
+    setupRenderEffect(instance, initialVnode, container);
 }
-function setupRenderEffect(instance, vnode, container) {
+function setupRenderEffect(instance, initialVnode, container) {
     const subTree = instance.render.call(instance.proxy, h);
     patch(subTree, container);
-    vnode.el = subTree.el;
+    initialVnode.el = subTree.el;
 }
 
 function createApp(rootComponent) {

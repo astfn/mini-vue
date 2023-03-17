@@ -17,6 +17,7 @@ export const App = {
         "Ashun "
       ),
       h("span", { class: "green" }, " Ashuntefannao"),
+      h("p", { class: "green" }, this.message),
     ]);
   },
   setup() {
