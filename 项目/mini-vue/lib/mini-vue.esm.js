@@ -1,6 +1,9 @@
 function isObject(target) {
     return target !== null && typeof target === "object";
 }
+function hasOwn(target, key) {
+    return Object.prototype.hasOwnProperty.call(target, key);
+}
 
 var ShapFlags;
 (function (ShapFlags) {
@@ -31,14 +34,101 @@ function getShapFlag(type) {
         : ShapFlags.STATEFUL_COMPONENT;
 }
 
+const targetMap = new Map();
+function trigger(target, key) {
+    let depsMap = targetMap.get(target);
+    let deps = depsMap === null || depsMap === void 0 ? void 0 : depsMap.get(key);
+    deps === null || deps === void 0 ? void 0 : deps.forEach((effect) => {
+        if (effect.scheduler) {
+            effect.scheduler();
+        }
+        else {
+            effect.run();
+        }
+    });
+}
+
+const get = createGetter();
+const set = createSetter();
+const readonlyGet = createGetter(true);
+const shallowReadonlyGet = createGetter(true, true);
+function createGetter(isReadonly = false, shallow = false) {
+    return function (target, propName) {
+        if (propName === ReactiveFlags.IS_REACTIVE) {
+            return !isReadonly;
+        }
+        if (propName === ReactiveFlags.IS_READONLY) {
+            return isReadonly;
+        }
+        const res = Reflect.get(target, propName);
+        if (shallow) {
+            return res;
+        }
+        if (isObject(res)) {
+            return isReadonly ? readonly(res) : reactive(res);
+        }
+        return res;
+    };
+}
+function createSetter() {
+    return function (target, propName, newValue) {
+        const res = Reflect.set(target, propName, newValue);
+        trigger(target, propName);
+        return res;
+    };
+}
+const mutableHandler = {
+    get,
+    set,
+};
+const readonlyHandler = {
+    get: readonlyGet,
+    set(_target, propName, _newValue) {
+        console.warn(`key:${String(propName)} set 失败,因为target 是 readonly`);
+        return true;
+    },
+};
+const shallowReadonlyHandler = {
+    get: shallowReadonlyGet,
+    set: readonlyHandler.set,
+};
+
+var ReactiveFlags;
+(function (ReactiveFlags) {
+    ReactiveFlags["IS_REACTIVE"] = "__v_isReactive";
+    ReactiveFlags["IS_READONLY"] = "__v_isReadonly";
+})(ReactiveFlags || (ReactiveFlags = {}));
+function createActiveObject(target, baseHandler) {
+    if (!isObject(target)) {
+        console.error(`target: ${target} 必须是一个对象`);
+        return target;
+    }
+    return new Proxy(target, baseHandler);
+}
+function reactive(raw) {
+    return createActiveObject(raw, mutableHandler);
+}
+function readonly(raw) {
+    return createActiveObject(raw, readonlyHandler);
+}
+function shallowReadonly(raw) {
+    return createActiveObject(raw, shallowReadonlyHandler);
+}
+
+function initProps(instance, rawProps) {
+    instance.props = rawProps !== null && rawProps !== void 0 ? rawProps : {};
+}
+
 const publicPropertiesMap = {
     $el: (i) => i.vnode.el,
 };
 const PublicInstanceProxyHandlers = {
     get({ _: instance }, key) {
-        const { setupState } = instance;
-        if (key in setupState)
+        const { setupState, props } = instance;
+        if (hasOwn(setupState, key))
             return setupState[key];
+        if (hasOwn(props, key))
+            return props[key];
         const publicGetter = publicPropertiesMap[key];
         if (publicGetter)
             return publicGetter(instance);
@@ -56,10 +146,10 @@ function createComponentInstance(vnode) {
     return component;
 }
 function setupComponent(instance) {
+    initProps(instance, instance.vnode.props);
     /**
      * TODO
-     * 1. initProps
-     * 2. initSlots
+     * initSlots
      */
     setupStatefulComponent(instance);
 }
@@ -68,7 +158,7 @@ function setupStatefulComponent(instance) {
     const Component = instance.type;
     const { setup } = Component;
     if (setup) {
-        const setupResult = setup();
+        const setupResult = setup(shallowReadonly(instance.props));
         handleSetupResult(instance, setupResult);
     }
 }
