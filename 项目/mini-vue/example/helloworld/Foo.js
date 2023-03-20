@@ -1,16 +1,17 @@
 const FooCpn = {
-  setup(props) {
-    //1.setup 接受props
-    console.log(props);
-    //3.props shallow readonly
-    props.counter++;
-    console.log(props.counter);
+  setup(props, { emit }) {
+    const handleAdd = () => {
+      emit("add", "FooCpn emit add event", 2, 3);
+      emit("add-foo", "FooCpn emit add-foo event", 4, 5);
+    };
+
+    return {
+      handleAdd,
+    };
   },
   render(h) {
-    //2. render 中可以通过this访问props中的property
     return h("div", { class: "foo-cpn" }, [
-      h("p", {}, `foo : ${this.counter}`),
-      h("p", {}, `parentCpn message: ${this.message}`),
+      h("p", { onClick: this.handleAdd }, `FooCpn text`),
     ]);
   },
 };

@@ -115,6 +115,22 @@ function shallowReadonly(raw) {
     return createActiveObject(raw, shallowReadonlyHandler);
 }
 
+function emit(instance, event, ...args) {
+    const { props } = instance;
+    const camelize = (str) => {
+        return str.replace(/-(\w)/g, (_matchRes, matchGroup) => {
+            return matchGroup ? matchGroup.toUpperCase() : "";
+        });
+    };
+    const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
+    const toHandlerKey = (str) => {
+        return str ? "on" + capitalize(str) : "";
+    };
+    const handlerName = toHandlerKey(camelize(event));
+    const handler = props[handlerName];
+    handler && handler(...args);
+}
+
 function initProps(instance, rawProps) {
     instance.props = rawProps !== null && rawProps !== void 0 ? rawProps : {};
 }
@@ -136,13 +152,16 @@ const PublicInstanceProxyHandlers = {
 };
 
 function createComponentInstance(vnode) {
+    const defaultEmit = () => { };
     const component = {
         vnode,
         type: vnode.type,
         setupState: {},
         render: undefined,
         proxy: undefined,
+        emit: defaultEmit,
     };
+    component.emit = emit.bind(null, component);
     return component;
 }
 function setupComponent(instance) {
@@ -158,7 +177,9 @@ function setupStatefulComponent(instance) {
     const Component = instance.type;
     const { setup } = Component;
     if (setup) {
-        const setupResult = setup(shallowReadonly(instance.props));
+        const setupResult = setup(shallowReadonly(instance.props), {
+            emit: instance.emit,
+        });
         handleSetupResult(instance, setupResult);
     }
 }
