@@ -137,6 +137,7 @@ function initProps(instance, rawProps) {
 
 const publicPropertiesMap = {
     $el: (i) => i.vnode.el,
+    $slots: (i) => i.slots,
 };
 const PublicInstanceProxyHandlers = {
     get({ _: instance }, key) {
@@ -151,6 +152,19 @@ const PublicInstanceProxyHandlers = {
     },
 };
 
+function initSlots(instance, children) {
+    normalizeObjectSlots(children, instance.slots);
+}
+function normalizeObjectSlots(children, slots) {
+    for (const key in children) {
+        const value = children[key];
+        slots[key] = normalizeSlotValue(value);
+    }
+}
+function normalizeSlotValue(value) {
+    return Array.isArray(value) ? value : [value];
+}
+
 function createComponentInstance(vnode) {
     const defaultEmit = () => { };
     const component = {
@@ -159,6 +173,8 @@ function createComponentInstance(vnode) {
         setupState: {},
         render: undefined,
         proxy: undefined,
+        props: {},
+        slots: {},
         emit: defaultEmit,
     };
     component.emit = emit.bind(null, component);
@@ -166,10 +182,7 @@ function createComponentInstance(vnode) {
 }
 function setupComponent(instance) {
     initProps(instance, instance.vnode.props);
-    /**
-     * TODO
-     * initSlots
-     */
+    initSlots(instance, instance.vnode.children);
     setupStatefulComponent(instance);
 }
 function setupStatefulComponent(instance) {
@@ -181,6 +194,9 @@ function setupStatefulComponent(instance) {
             emit: instance.emit,
         });
         handleSetupResult(instance, setupResult);
+    }
+    else {
+        finishComponentSetup(instance);
     }
 }
 function handleSetupResult(instance, setupResult) {
@@ -295,4 +311,11 @@ function getRootContainer(rootContainer) {
     }
 }
 
-export { createApp };
+function renderSlots(slots, name) {
+    const slot = slots[name];
+    if (slot) {
+        return createVNode("div", {}, slot);
+    }
+}
+
+export { createApp, renderSlots };

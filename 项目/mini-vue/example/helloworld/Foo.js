@@ -1,17 +1,13 @@
-const FooCpn = {
-  setup(props, { emit }) {
-    const handleAdd = () => {
-      emit("add", "FooCpn emit add event", 2, 3);
-      emit("add-foo", "FooCpn emit add-foo event", 4, 5);
-    };
+import { renderSlots } from "../../lib/mini-vue.esm.js";
 
-    return {
-      handleAdd,
-    };
-  },
+const FooCpn = {
   render(h) {
+    const fooTitle = h("p", {}, `FooCpn title`);
+    // return h("div", { class: "foo-cpn" }, [fooTitle, ...this.$slots]);
     return h("div", { class: "foo-cpn" }, [
-      h("p", { onClick: this.handleAdd }, `FooCpn text`),
+      renderSlots(this.$slots, "header"),
+      fooTitle,
+      renderSlots(this.$slots, "footer"),
     ]);
   },
 };
