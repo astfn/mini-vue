@@ -211,7 +211,7 @@ export function initSlots(instance, children) {
 
 #### 需求分析
 
-​	既然要根据名称插入到指定位置，那就一定要维护一个 `插槽名` 和 `插槽内容` 之间的映射关系。因此我们需要改变一下 slots 的数据结构（由数组切换为字典）
+​	既然要根据名称插入到指定位置，那就一定要维护一个 `插槽名` 和 `插槽内容` 之间的映射关系。因此我们需要改变一下<span id="具名插槽_收集slots的数据结构">收集 slots 的数据结构</span>（由数组切换为字典）
 
 <img src="实现组件的 slots 功能.assets/003.png" alt="003" style="zoom:80%;" />
 
@@ -331,3 +331,145 @@ function normalizeSlotValue(value) {
 ```
 
 ## 作用域插槽
+
+### 需求分析
+
+​	作用域插槽的功能是：在插槽渲染的地方，支持传入当前组件作用域的标识符。在实际使用时，能够起到通过插槽让子组件向父组件传递信息的功能。
+
+<img src="实现组件的 slots 功能.assets/005.png" alt="005" style="zoom:80%;" />
+
+​	上文实现具名插槽的时候，我们不仅改变了 Foo 组件被初始化时 children 的数据结构，还支持通过 renderSlots 传入 slotName 匹配对应的 slotContent。
+
+​	同理，我们也可以让 renderSlots 支持传入当前作用域的变量，然后 Foo 组件被初始化时 children 的数据结构改成 `{ [key: string]: (props)=> Vnode }`；initSlots 在收集 slots 时，再把 slot 包裹一层函数，用于接收 renderSlots 传入的 props。
+
+​	相比现有的 <a href="#具名插槽_收集slots的数据结构">initSlots 所收集的 slots 的数据结构</a>，相当于包裹了一层 function
+
+<img src="实现组件的 slots 功能.assets/006.png" alt="006" style="zoom:80%;" />
+
+### 代码实现
+
+更新 <a href='#具名插槽_AppCpn'>App.js</a> 内容如下：
+
+<span id='作用域插槽_AppCpn'>App.js</span>
+
+* 将 Foo 的 children 类型改为 `{ [key: string]: (props)=> Vnode }`
+
+```
+export const App = {
+  render(h) {
+    const FooCpn = h(
+      Foo,
+      {},
+      {
+        header: ({ message }) => h("p", {}, `foo -- ${message}`),
+        footer: () => h("p", { class: "red" }, "foo1"),
+      }
+    );
+    return h("div", { id: "root" }, [FooCpn]);
+  },
+};
+```
+
+更新 <a href='#具名插槽_FooCpn'>Foo.js</a> 内容如下：
+
+<span id='作用域插槽_FooCpn'>Foo.js</span>
+
+* 向 renderSlots 传入当前作用域的标识符
+
+```
+const FooCpn = {
+  render(h) {
+    const fooTitle = h("p", {}, `FooCpn title`);
+    return h("div", { class: "foo-cpn" }, [
+      renderSlots(this.$slots, "header", { message: "hello" }),
+      fooTitle,
+      renderSlots(this.$slots, "footer"),
+    ]);
+  },
+};
+```
+
+更新 <a href='#具名插槽_renderSlots'>renderSlots.ts</a> 内容如下：
+
+<span id='作用域插槽_renderSlots'>renderSlots</span>
+
+```
+export function renderSlots(slots, name, props) {
+  const slot = slots[name];
+  if (slot) {
+    if (typeof slot === "function") return createVNode("div", {}, slot(props));
+  }
+}
+```
+
+更新 <a href='#具名插槽_代码重构_initSlots'>initSlots</a> 内容如下：
+
+<span id='作用域插槽_代码实现_initSlots'>initSlots</span> -> normalizeObjectSlots
+
+* 把收集的 slotValue 包裹一层函数，用于接收 renderSlots 传入的 props。
+
+```
+function normalizeObjectSlots(children, slots) {
+  for (const key in children) {
+    const value = children[key];
+    slots[key] = (props) => normalizeSlotValue(value(props));
+  }
+}
+```
+
+---
+
+此时你会看到，作用于插槽传递的标识符已经生效：
+
+
+
+<img src="实现组件的 slots 功能.assets/007.png" alt="007" style="zoom:80%;" />
+
+### 代码重构
+
+​	通过实现插槽功能，我们更改了现有的 children 结构(支持字典类型)。而在内部代码中，我们并没有对字典类型的 children 进行任何校验和判断。
+
+​	我们在 initSlots 中依据 children 收集字典类型的 slots 时，就没有对 children 的类型进行校验。
+
+​	我们可以扩展一个新的 ShapFlags 枚举值 (SLOT_CHILDREN)，用于标记字典类型的 children，用于适配 slots 场景，所涉及的重构点如下：
+
+1. 更新 ShapFlags
+2. createVNode 时，依据 children 是否为 object，判断是否赋予 SLOT_CHILDREN 类型
+3. initSlots 时，如果 `vnode.shapFlag & ShapFlags.SLOT_CHILDREN` 才进行后续处理
+
+更新 ShapFlags
+
+```
+export enum ShapFlags {
+  ELEMENT = 1,
+  STATEFUL_COMPONENT = 1 << 1,
+  TEXT_CHILDREN = 1 << 2,
+  ARRAY_CHILDREN = 1 << 3,
+  SLOTS_CHILDREN = 1 << 4,
+}
+```
+
+---
+
+更新 createVNode 
+
+```
+……
+else if (typeof children === "object")
+    vnode.shapFlag |= ShapFlags.SLOTS_CHILDREN;
+……
+```
+
+---
+
+更新 initSlots 
+
+```
+export function initSlots(instance, children) {
+  const { vnode } = instance;
+  if (vnode.shapFlag & ShapFlags.SLOTS_CHILDREN) {
+    normalizeObjectSlots(children, instance.slots);
+  }
+}
+```
+

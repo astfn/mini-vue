@@ -13,6 +13,7 @@ var ShapFlags;
     ShapFlags[ShapFlags["STATEFUL_COMPONENT"] = 2] = "STATEFUL_COMPONENT";
     ShapFlags[ShapFlags["TEXT_CHILDREN"] = 4] = "TEXT_CHILDREN";
     ShapFlags[ShapFlags["ARRAY_CHILDREN"] = 8] = "ARRAY_CHILDREN";
+    ShapFlags[ShapFlags["SLOTS_CHILDREN"] = 16] = "SLOTS_CHILDREN";
 })(ShapFlags || (ShapFlags = {}));
 
 function createVNode(type, props, children) {
@@ -24,10 +25,13 @@ function createVNode(type, props, children) {
         el: undefined,
     };
     //标记 children 类型
-    if (typeof children === "string")
+    if (typeof children === "string") {
         vnode.shapFlag |= ShapFlags.TEXT_CHILDREN;
-    if (Array.isArray(children))
+    }
+    else if (Array.isArray(children))
         vnode.shapFlag |= ShapFlags.ARRAY_CHILDREN;
+    else if (typeof children === "object")
+        vnode.shapFlag |= ShapFlags.SLOTS_CHILDREN;
     return vnode;
 }
 function getShapFlag(type) {
@@ -155,12 +159,15 @@ const PublicInstanceProxyHandlers = {
 };
 
 function initSlots(instance, children) {
-    normalizeObjectSlots(children, instance.slots);
+    const { vnode } = instance;
+    if (vnode.shapFlag & ShapFlags.SLOTS_CHILDREN) {
+        normalizeObjectSlots(children, instance.slots);
+    }
 }
 function normalizeObjectSlots(children, slots) {
     for (const key in children) {
         const value = children[key];
-        slots[key] = normalizeSlotValue(value);
+        slots[key] = (props) => normalizeSlotValue(value(props));
     }
 }
 function normalizeSlotValue(value) {
@@ -313,10 +320,11 @@ function getRootContainer(rootContainer) {
     }
 }
 
-function renderSlots(slots, name) {
+function renderSlots(slots, name, props) {
     const slot = slots[name];
     if (slot) {
-        return createVNode("div", {}, slot);
+        if (typeof slot === "function")
+            return createVNode("div", {}, slot(props));
     }
 }
 

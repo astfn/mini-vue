@@ -5,7 +5,7 @@ const FooCpn = {
     const fooTitle = h("p", {}, `FooCpn title`);
     // return h("div", { class: "foo-cpn" }, [fooTitle, ...this.$slots]);
     return h("div", { class: "foo-cpn" }, [
-      renderSlots(this.$slots, "header"),
+      renderSlots(this.$slots, "header", { message: "hello" }),
       fooTitle,
       renderSlots(this.$slots, "footer"),
     ]);

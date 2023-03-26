@@ -9,8 +9,12 @@ export function createVNode(type, props?, children?) {
     el: undefined,
   };
   //标记 children 类型
-  if (typeof children === "string") vnode.shapFlag |= ShapFlags.TEXT_CHILDREN;
-  if (Array.isArray(children)) vnode.shapFlag |= ShapFlags.ARRAY_CHILDREN;
+  if (typeof children === "string") {
+    vnode.shapFlag |= ShapFlags.TEXT_CHILDREN;
+  } else if (Array.isArray(children))
+    vnode.shapFlag |= ShapFlags.ARRAY_CHILDREN;
+  else if (typeof children === "object")
+    vnode.shapFlag |= ShapFlags.SLOTS_CHILDREN;
 
   return vnode;
 }

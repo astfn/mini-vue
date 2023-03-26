@@ -6,8 +6,8 @@ export const App = {
       Foo,
       {},
       {
-        header: h("p", {}, "foo"),
-        footer: h("p", { class: "red" }, "foo1"),
+        header: ({ message }) => h("p", {}, `foo -- ${message}`),
+        footer: () => h("p", { class: "red" }, "foo1"),
       }
     );
     return h("div", { id: "root" }, [FooCpn]);
