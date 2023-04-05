@@ -2,6 +2,7 @@ import { isObject } from "../shared/index";
 import { ShapFlags } from "../shared/ShapFlags";
 import { createComponentInstance, setupComponent } from "./component";
 import { h } from "./h";
+import { Fragment, Text } from "./vnode";
 
 export function render(vnode, container) {
   //调用 patch 对虚拟节点进行具体处理
@@ -9,13 +10,34 @@ export function render(vnode, container) {
 }
 
 function patch(vnode, container) {
-  const { shapFlag } = vnode;
-  // 根据 vnode 的类型，来决定是处理 component 还是 element
-  if (shapFlag & ShapFlags.ELEMENT) {
-    procescsElement(vnode, container);
-  } else if (shapFlag & ShapFlags.STATEFUL_COMPONENT) {
-    processComponent(vnode, container);
+  const { type, shapFlag } = vnode;
+  switch (type) {
+    case Fragment: {
+      procescsFragment(vnode, container);
+      break;
+    }
+    case Text: {
+      procescsText(vnode, container);
+      break;
+    }
+    default: {
+      // 根据 vnode 的类型，来决定是处理 component 还是 element
+      if (shapFlag & ShapFlags.ELEMENT) {
+        procescsElement(vnode, container);
+      } else if (shapFlag & ShapFlags.STATEFUL_COMPONENT) {
+        processComponent(vnode, container);
+      }
+    }
   }
+}
+
+function procescsText(vnode, container) {
+  const el = (vnode.el = document.createTextNode(vnode.children));
+  container.appendChild(el);
+}
+
+function procescsFragment(vnode, container) {
+  mountChildren(vnode, container);
 }
 
 function procescsElement(vnode, container) {

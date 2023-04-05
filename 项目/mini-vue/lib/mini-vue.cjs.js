@@ -16,6 +16,8 @@ var ShapFlags;
     ShapFlags[ShapFlags["SLOTS_CHILDREN"] = 16] = "SLOTS_CHILDREN";
 })(ShapFlags || (ShapFlags = {}));
 
+const Fragment = Symbol("Fragment");
+const Text = Symbol("Text");
 function createVNode(type, props, children) {
     const vnode = {
         type,
@@ -38,6 +40,9 @@ function getShapFlag(type) {
     return typeof type === "string"
         ? ShapFlags.ELEMENT
         : ShapFlags.STATEFUL_COMPONENT;
+}
+function createTextVNode(text) {
+    return createVNode(Text, {}, text);
 }
 
 const targetMap = new Map();
@@ -234,14 +239,33 @@ function render(vnode, container) {
     patch(vnode, container);
 }
 function patch(vnode, container) {
-    const { shapFlag } = vnode;
-    // 根据 vnode 的类型，来决定是处理 component 还是 element
-    if (shapFlag & ShapFlags.ELEMENT) {
-        procescsElement(vnode, container);
+    const { type, shapFlag } = vnode;
+    switch (type) {
+        case Fragment: {
+            procescsFragment(vnode, container);
+            break;
+        }
+        case Text: {
+            procescsText(vnode, container);
+            break;
+        }
+        default: {
+            // 根据 vnode 的类型，来决定是处理 component 还是 element
+            if (shapFlag & ShapFlags.ELEMENT) {
+                procescsElement(vnode, container);
+            }
+            else if (shapFlag & ShapFlags.STATEFUL_COMPONENT) {
+                processComponent(vnode, container);
+            }
+        }
     }
-    else if (shapFlag & ShapFlags.STATEFUL_COMPONENT) {
-        processComponent(vnode, container);
-    }
+}
+function procescsText(vnode, container) {
+    const el = (vnode.el = document.createTextNode(vnode.children));
+    container.appendChild(el);
+}
+function procescsFragment(vnode, container) {
+    mountChildren(vnode, container);
 }
 function procescsElement(vnode, container) {
     /**
@@ -324,9 +348,10 @@ function renderSlots(slots, name, props) {
     const slot = slots[name];
     if (slot) {
         if (typeof slot === "function")
-            return createVNode("div", {}, slot(props));
+            return createVNode(Fragment, {}, slot(props));
     }
 }
 
 exports.createApp = createApp;
+exports.createTextVNode = createTextVNode;
 exports.renderSlots = renderSlots;
