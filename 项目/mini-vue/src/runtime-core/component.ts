@@ -4,7 +4,7 @@ import { initProps } from "./componentProps";
 import { PublicInstanceProxyHandlers } from "./componentPublicInstance";
 import { initSlots } from "./componentSlots";
 
-export function createComponentInstance(vnode) {
+export function createComponentInstance(vnode, parent) {
   const defaultEmit: Function = () => {};
   const component = {
     vnode,
@@ -14,6 +14,8 @@ export function createComponentInstance(vnode) {
     proxy: undefined,
     props: {},
     slots: {},
+    provides: parent ? parent.provides : {},
+    parent,
     emit: defaultEmit,
   };
   component.emit = emit.bind(null, component);
@@ -61,7 +63,7 @@ function finishComponentSetup(instance: any) {
   }
 }
 
-let currentInstance = null;
+let currentInstance: any = null;
 
 function setCurrentInstance(instance) {
   currentInstance = instance;

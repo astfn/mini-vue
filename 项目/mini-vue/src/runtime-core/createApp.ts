@@ -9,7 +9,7 @@ export function createApp(rootComponent) {
       //2. 创建组件实例，并 render
       const vnode = createVNode(rootComponent);
       const targetRootContainer = getRootContainer(rootContainer);
-      render(vnode, targetRootContainer);
+      render(vnode, targetRootContainer, null);
     },
   };
 }
