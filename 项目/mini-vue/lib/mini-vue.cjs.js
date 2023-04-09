@@ -204,9 +204,11 @@ function setupStatefulComponent(instance) {
     const Component = instance.type;
     const { setup } = Component;
     if (setup) {
+        setCurrentInstance(instance);
         const setupResult = setup(shallowReadonly(instance.props), {
             emit: instance.emit,
         });
+        setCurrentInstance(null);
         handleSetupResult(instance, setupResult);
     }
     else {
@@ -228,6 +230,13 @@ function finishComponentSetup(instance) {
     if (Component.render) {
         instance.render = Component.render;
     }
+}
+let currentInstance = null;
+function setCurrentInstance(instance) {
+    currentInstance = instance;
+}
+function getCurrentInstance() {
+    return currentInstance;
 }
 
 function h(type, props, children) {
@@ -354,4 +363,5 @@ function renderSlots(slots, name, props) {
 
 exports.createApp = createApp;
 exports.createTextVNode = createTextVNode;
+exports.getCurrentInstance = getCurrentInstance;
 exports.renderSlots = renderSlots;

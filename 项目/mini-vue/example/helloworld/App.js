@@ -1,7 +1,8 @@
 import Foo from "./Foo.js";
-import { createTextVNode } from "../../lib/mini-vue.esm.js";
+import { createTextVNode, getCurrentInstance } from "../../lib/mini-vue.esm.js";
 
 export const App = {
+  name: "App",
   render(h) {
     const FooCpn = h(
       Foo,
@@ -15,5 +16,8 @@ export const App = {
       }
     );
     return h("div", { id: "root" }, [FooCpn]);
+  },
+  setup() {
+    console.log(getCurrentInstance());
   },
 };

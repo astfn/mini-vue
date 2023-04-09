@@ -1,6 +1,7 @@
-import { renderSlots } from "../../lib/mini-vue.esm.js";
+import { renderSlots, getCurrentInstance } from "../../lib/mini-vue.esm.js";
 
 const FooCpn = {
+  name: "Foo",
   render(h) {
     const fooTitle = h("p", {}, `FooCpn title`);
     // return h("div", { class: "foo-cpn" }, [fooTitle, ...this.$slots]);
@@ -9,6 +10,9 @@ const FooCpn = {
       fooTitle,
       renderSlots(this.$slots, "footer"),
     ]);
+  },
+  setup() {
+    console.log(getCurrentInstance());
   },
 };
 
