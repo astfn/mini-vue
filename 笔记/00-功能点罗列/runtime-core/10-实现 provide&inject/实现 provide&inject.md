@@ -235,3 +235,25 @@ export function provide(key, value) {
 此时 run 一下代码，并打印一下 App、ChildCpn 组件，发现功能完美实现：
 
 <img src="实现 provide&inject.assets/006.png" alt="006" style="zoom:80%;" />
+
+### defaultValue
+
+​	我们知道，在使用 inject 时，还支持配置 defaultValue，如果 inject 的这个 key 没有在祖先组件中的 provides 中找到，则会返回 defaultValue，并且 defaultValue 还支撑配置成 function 的形式。
+
+更新 inject 工具函数代码
+
+```
+export function inject(key, defaultValue) {
+  const currentInstance = getCurrentInstance();
+  if (currentInstance) {
+    const parentProvides = currentInstance.parent.provides;
+    if (key in parentProvides) {
+      return parentProvides[key];
+    } else if (defaultValue) {
+      if (typeof defaultValue === "function") return defaultValue();
+      return defaultValue;
+    }
+  }
+}
+```
+

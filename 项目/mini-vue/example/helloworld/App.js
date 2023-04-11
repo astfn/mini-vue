@@ -5,11 +5,19 @@ const NestChildCpn = {
   render(h) {
     const nestChildCpnTitle = h("h2", {}, `nestChildCpn title`);
     const injectMessage = h("span", {}, `${this.injectMessage}`);
-    return h("div", { id: "nest-child" }, [nestChildCpnTitle, injectMessage]);
+    const title = h("p", {}, `${this.testInjectDefaultValue.title}`);
+    return h("div", { id: "nest-child" }, [
+      nestChildCpnTitle,
+      injectMessage,
+      title,
+    ]);
   },
   setup() {
     const injectMessage = inject("foo");
-    return { injectMessage };
+    const testInjectDefaultValue = inject("foo1", () => ({
+      title: "Ashuntefannao",
+    }));
+    return { injectMessage, testInjectDefaultValue };
   },
 };
 

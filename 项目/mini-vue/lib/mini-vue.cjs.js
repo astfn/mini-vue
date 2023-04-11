@@ -375,11 +375,18 @@ function provide(key, value) {
         provides[key] = value;
     }
 }
-function inject(key) {
+function inject(key, defaultValue) {
     const currentInstance = getCurrentInstance();
     if (currentInstance) {
         const parentProvides = currentInstance.parent.provides;
-        return parentProvides[key];
+        if (key in parentProvides) {
+            return parentProvides[key];
+        }
+        else if (defaultValue) {
+            if (typeof defaultValue === "function")
+                return defaultValue();
+            return defaultValue;
+        }
     }
 }
 
