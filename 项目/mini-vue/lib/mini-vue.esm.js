@@ -1,10 +1,3 @@
-function isObject(target) {
-    return target !== null && typeof target === "object";
-}
-function hasOwn(target, key) {
-    return Object.prototype.hasOwnProperty.call(target, key);
-}
-
 var ShapFlags;
 (function (ShapFlags) {
     ShapFlags[ShapFlags["ELEMENT"] = 1] = "ELEMENT";
@@ -41,6 +34,21 @@ function getShapFlag(type) {
 }
 function createTextVNode(text) {
     return createVNode(Text, {}, text);
+}
+
+function renderSlots(slots, name, props) {
+    const slot = slots[name];
+    if (slot) {
+        if (typeof slot === "function")
+            return createVNode(Fragment, {}, slot(props));
+    }
+}
+
+function isObject(target) {
+    return target !== null && typeof target === "object";
+}
+function hasOwn(target, key) {
+    return Object.prototype.hasOwnProperty.call(target, key);
 }
 
 const targetMap = new Map();
@@ -239,128 +247,6 @@ function getCurrentInstance() {
     return currentInstance;
 }
 
-function h(type, props, children) {
-    return createVNode(type, props, children);
-}
-
-function render(vnode, container, parentComponent) {
-    //调用 patch 对虚拟节点进行具体处理
-    patch(vnode, container, parentComponent);
-}
-function patch(vnode, container, parentComponent) {
-    const { type, shapFlag } = vnode;
-    switch (type) {
-        case Fragment: {
-            procescsFragment(vnode, container, parentComponent);
-            break;
-        }
-        case Text: {
-            procescsText(vnode, container);
-            break;
-        }
-        default: {
-            // 根据 vnode 的类型，来决定是处理 component 还是 element
-            if (shapFlag & ShapFlags.ELEMENT) {
-                procescsElement(vnode, container, parentComponent);
-            }
-            else if (shapFlag & ShapFlags.STATEFUL_COMPONENT) {
-                processComponent(vnode, container, parentComponent);
-            }
-        }
-    }
-}
-function procescsText(vnode, container) {
-    const el = (vnode.el = document.createTextNode(vnode.children));
-    container.appendChild(el);
-}
-function procescsFragment(vnode, container, parentComponent) {
-    mountChildren(vnode, container, parentComponent);
-}
-function procescsElement(vnode, container, parentComponent) {
-    /**
-     * 主要逻辑有：挂载、更新
-     */
-    //初始化流程，目前只关注挂载过程
-    mountElement(vnode, container, parentComponent);
-}
-function mountElement(vnode, container, parentComponent) {
-    const el = (vnode.el = document.createElement(vnode.type));
-    const { children, props, shapFlag } = vnode;
-    //props
-    const isOn = (key) => /^on[A-Z]/.test(key);
-    Object.entries(props).forEach(([key, value]) => {
-        if (isOn(key)) {
-            const event = key.slice(2).toLocaleLowerCase();
-            el.addEventListener(event, value);
-        }
-        else {
-            el.setAttribute(key, value);
-        }
-    });
-    //children
-    if (shapFlag & ShapFlags.TEXT_CHILDREN) {
-        el.innerText = children;
-    }
-    else if (shapFlag & ShapFlags.ARRAY_CHILDREN) {
-        mountChildren(vnode, el, parentComponent);
-    }
-    container.appendChild(el);
-}
-function mountChildren(vnode, container, parentComponent) {
-    for (const vnodeItem of vnode.children) {
-        patch(vnodeItem, container, parentComponent);
-    }
-}
-function processComponent(vnode, container, parentComponent) {
-    /**
-     * 主要逻辑有：挂载组件、更新组件
-     */
-    //初始化流程，目前只关注挂载组件过程
-    mountComponent(vnode, container, parentComponent);
-}
-function mountComponent(initialVnode, container, parentComponent) {
-    /**
-     * 创建组件实例
-     * 对组件实例进行初始化设置
-     */
-    const instance = createComponentInstance(initialVnode, parentComponent);
-    setupComponent(instance);
-    setupRenderEffect(instance, initialVnode, container, instance);
-}
-function setupRenderEffect(instance, initialVnode, container, parentComponent) {
-    const subTree = instance.render.call(instance.proxy, h);
-    patch(subTree, container, parentComponent);
-    initialVnode.el = subTree.el;
-}
-
-function createApp(rootComponent) {
-    return {
-        mount(rootContainer) {
-            //1. 先将组件统一转化为 vnode，后续都会基于 vnode 进行各种操作
-            //2. 创建组件实例，并 render
-            const vnode = createVNode(rootComponent);
-            const targetRootContainer = getRootContainer(rootContainer);
-            render(vnode, targetRootContainer, null);
-        },
-    };
-}
-function getRootContainer(rootContainer) {
-    if (typeof rootContainer === "string") {
-        return document.querySelector(rootContainer);
-    }
-    else if (isObject(rootContainer)) {
-        return rootContainer;
-    }
-}
-
-function renderSlots(slots, name, props) {
-    const slot = slots[name];
-    if (slot) {
-        if (typeof slot === "function")
-            return createVNode(Fragment, {}, slot(props));
-    }
-}
-
 function provide(key, value) {
     var _a;
     const currentInstance = getCurrentInstance();
@@ -388,4 +274,152 @@ function inject(key, defaultValue) {
     }
 }
 
-export { createApp, createTextVNode, getCurrentInstance, inject, provide, renderSlots };
+function createAppAPI(render) {
+    return function createApp(rootComponent) {
+        return {
+            mount(rootContainer) {
+                //1. 先将组件统一转化为 vnode，后续都会基于 vnode 进行各种操作
+                //2. 创建组件实例，并 render
+                const vnode = createVNode(rootComponent);
+                const targetRootContainer = getRootContainer(rootContainer);
+                render(vnode, targetRootContainer, null);
+            },
+        };
+    };
+}
+function getRootContainer(rootContainer) {
+    if (typeof rootContainer === "string") {
+        return document.querySelector(rootContainer);
+    }
+    else if (isObject(rootContainer)) {
+        return rootContainer;
+    }
+}
+
+function h(type, props, children) {
+    return createVNode(type, props, children);
+}
+
+function createRenderer(options) {
+    const { createElement, patchProps, insert } = options;
+    function render(vnode, container, parentComponent) {
+        //调用 patch 对虚拟节点进行具体处理
+        patch(vnode, container, parentComponent);
+    }
+    function patch(vnode, container, parentComponent) {
+        const { type, shapFlag } = vnode;
+        switch (type) {
+            case Fragment: {
+                procescsFragment(vnode, container, parentComponent);
+                break;
+            }
+            case Text: {
+                procescsText(vnode, container);
+                break;
+            }
+            default: {
+                // 根据 vnode 的类型，来决定是处理 component 还是 element
+                if (shapFlag & ShapFlags.ELEMENT) {
+                    procescsElement(vnode, container, parentComponent);
+                }
+                else if (shapFlag & ShapFlags.STATEFUL_COMPONENT) {
+                    processComponent(vnode, container, parentComponent);
+                }
+            }
+        }
+    }
+    function procescsText(vnode, container) {
+        const el = (vnode.el = document.createTextNode(vnode.children));
+        container.appendChild(el);
+    }
+    function procescsFragment(vnode, container, parentComponent) {
+        mountChildren(vnode, container, parentComponent);
+    }
+    function procescsElement(vnode, container, parentComponent) {
+        /**
+         * 主要逻辑有：挂载、更新
+         */
+        //初始化流程，目前只关注挂载过程
+        mountElement(vnode, container, parentComponent);
+    }
+    function mountElement(vnode, container, parentComponent) {
+        // const el = (vnode.el = document.createElement(vnode.type));
+        const el = (vnode.el = createElement(vnode.type));
+        const { children, props, shapFlag } = vnode;
+        //props
+        Object.entries(props).forEach(([key, value]) => {
+            // if (isOn(key)) {
+            //   const event = key.slice(2).toLocaleLowerCase();
+            //   el.addEventListener(event, value);
+            // } else {
+            //   el.setAttribute(key, value);
+            // }
+            patchProps(el, key, value);
+        });
+        //children
+        if (shapFlag & ShapFlags.TEXT_CHILDREN) {
+            el.innerText = children;
+        }
+        else if (shapFlag & ShapFlags.ARRAY_CHILDREN) {
+            mountChildren(vnode, el, parentComponent);
+        }
+        // container.appendChild(el);
+        insert(el, container);
+    }
+    function mountChildren(vnode, container, parentComponent) {
+        for (const vnodeItem of vnode.children) {
+            patch(vnodeItem, container, parentComponent);
+        }
+    }
+    function processComponent(vnode, container, parentComponent) {
+        /**
+         * 主要逻辑有：挂载组件、更新组件
+         */
+        //初始化流程，目前只关注挂载组件过程
+        mountComponent(vnode, container, parentComponent);
+    }
+    function mountComponent(initialVnode, container, parentComponent) {
+        /**
+         * 创建组件实例
+         * 对组件实例进行初始化设置
+         */
+        const instance = createComponentInstance(initialVnode, parentComponent);
+        setupComponent(instance);
+        setupRenderEffect(instance, initialVnode, container, instance);
+    }
+    function setupRenderEffect(instance, initialVnode, container, parentComponent) {
+        const subTree = instance.render.call(instance.proxy, h);
+        patch(subTree, container, parentComponent);
+        initialVnode.el = subTree.el;
+    }
+    return {
+        createApp: createAppAPI(render),
+    };
+}
+
+function createElement(type) {
+    return document.createElement(type);
+}
+function patchProps(el, key, value) {
+    const isOn = (key) => /^on[A-Z]/.test(key);
+    if (isOn(key)) {
+        const event = key.slice(2).toLocaleLowerCase();
+        el.addEventListener(event, value);
+    }
+    else {
+        el.setAttribute(key, value);
+    }
+}
+function insert(el, container) {
+    container.appendChild(el);
+}
+const renderer = createRenderer({
+    createElement,
+    patchProps,
+    insert,
+});
+function createApp(...args) {
+    return renderer.createApp(...args);
+}
+
+export { createApp, createRenderer, createTextVNode, getCurrentInstance, inject, provide, renderSlots };
