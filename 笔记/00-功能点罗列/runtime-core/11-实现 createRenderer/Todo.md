@@ -22,3 +22,11 @@
    3. runtime-dom 中导出 renderer.createApp(...args)
 
 ### 试用 createRenderer
+
+基于 canvas 平台渲染元素，利用 `pixiJs` (一个 H5 游戏引擎库) 快速搭建。
+
+1. 编写基础代码
+   * 引入 createRenderer，并在使用时传入 option，利用 createRenderer 所返回的 createApp 创建 vue 应用
+   * 编写 App.js (vue app的根组件)，并在其中通过 h 函数创建一个 `ShapeFlags.ELEMENT` 类型的 vnode
+2. 引入 `pixiJs`，并在 createRenderer 的 options 中使用 `pixiJs` 提供的 api 完成元素的创建、属性设置、追加元素过程。
+

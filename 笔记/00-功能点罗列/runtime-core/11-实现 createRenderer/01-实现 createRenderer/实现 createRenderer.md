@@ -223,3 +223,20 @@ export * from "../runtime-core";
 export * from "./runtime-dom";
 ```
 
+## 小小优化点
+
+由于现在对 `ShapeFlags.ELEMENT` 类型 vnode 的核心操作由外部传入，为了后续 debug 的方便性，我们将 createElement、patchProps、insert 这些 api 在接收时，另起别名(以 host 为前缀)，这些 api 就有了很好的语义化和辨识度，相关逻辑出现问题时，就能够比较好的定位
+
+```
+export function createRenderer(options) {
+  const {
+    createElement: hostCreateElement,
+    patchProps: hostPatchProps,
+    insert: hostInsert,
+  } = options;
+  
+  …………
+  ……
+}
+```
+

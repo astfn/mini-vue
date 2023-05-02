@@ -6,7 +6,11 @@ import { h } from "./h";
 import { Fragment, Text } from "./vnode";
 
 export function createRenderer(options) {
-  const { createElement, patchProps, insert } = options;
+  const {
+    createElement: hostCreateElement,
+    patchProps: hostPatchProps,
+    insert: hostInsert,
+  } = options;
 
   function render(vnode, container, parentComponent) {
     //调用 patch 对虚拟节点进行具体处理
@@ -54,7 +58,7 @@ export function createRenderer(options) {
 
   function mountElement(vnode, container, parentComponent) {
     // const el = (vnode.el = document.createElement(vnode.type));
-    const el = (vnode.el = createElement(vnode.type));
+    const el = (vnode.el = hostCreateElement(vnode.type));
     const { children, props, shapFlag } = vnode;
 
     //props
@@ -65,7 +69,7 @@ export function createRenderer(options) {
       // } else {
       //   el.setAttribute(key, value);
       // }
-      patchProps(el, key, value);
+      hostPatchProps(el, key, value);
     });
 
     //children
@@ -76,7 +80,7 @@ export function createRenderer(options) {
     }
 
     // container.appendChild(el);
-    insert(el, container);
+    hostInsert(el, container);
   }
 
   function mountChildren(vnode, container, parentComponent) {
