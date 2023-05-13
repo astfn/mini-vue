@@ -44,14 +44,108 @@ function renderSlots(slots, name, props) {
     }
 }
 
+/******************************************************************************
+Copyright (c) Microsoft Corporation.
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE.
+***************************************************************************** */
+
+function __classPrivateFieldGet(receiver, state, kind, f) {
+    if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a getter");
+    if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
+    return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
+}
+
+function __classPrivateFieldSet(receiver, state, value, kind, f) {
+    if (kind === "m") throw new TypeError("Private method is not writable");
+    if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a setter");
+    if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot write private member to an object whose class did not declare it");
+    return (kind === "a" ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value)), value;
+}
+
+const extend = Object.assign;
 function isObject(target) {
     return target !== null && typeof target === "object";
+}
+function hasChanged(newValue, oldValue) {
+    return !Object.is(newValue, oldValue);
+    // newValue===oldValue && !isNaN(newValue) && !isNaN(newValue)
 }
 function hasOwn(target, key) {
     return Object.prototype.hasOwnProperty.call(target, key);
 }
 
+var _ReactiveEffect_fn;
+let activeEffect;
+let shouldTrack = true;
+function isTracking() {
+    return activeEffect !== undefined && shouldTrack;
+}
+function cleanupEffect(effect) {
+    var _a;
+    (_a = effect.depsMap) === null || _a === void 0 ? void 0 : _a.forEach((dep) => dep.delete(effect));
+}
+class ReactiveEffect {
+    constructor(fn, options) {
+        _ReactiveEffect_fn.set(this, void 0);
+        this.isCleared = false;
+        __classPrivateFieldSet(this, _ReactiveEffect_fn, fn, "f");
+        options && extend(this, options);
+    }
+    run() {
+        var _a, _b;
+        if (this.isCleared) {
+            return (_a = __classPrivateFieldGet(this, _ReactiveEffect_fn, "f")) === null || _a === void 0 ? void 0 : _a.call(this);
+        }
+        shouldTrack = true;
+        activeEffect = this;
+        const res = (_b = __classPrivateFieldGet(this, _ReactiveEffect_fn, "f")) === null || _b === void 0 ? void 0 : _b.call(this);
+        shouldTrack = false;
+        return res;
+    }
+    stop() {
+        if (!this.isCleared) {
+            cleanupEffect(this);
+            this.onStop && this.onStop();
+            this.isCleared = true;
+        }
+    }
+}
+_ReactiveEffect_fn = new WeakMap();
+function effect(fn, options) {
+    let _effect = new ReactiveEffect(fn, options);
+    _effect.run();
+    activeEffect = undefined;
+    const runner = _effect.run.bind(_effect);
+    runner.effect = _effect;
+    return runner;
+}
 const targetMap = new Map();
+function track(target, key) {
+    if (!isTracking())
+        return;
+    let depsMap = targetMap.get(target);
+    if (!depsMap) {
+        depsMap = new Map();
+        targetMap.set(target, depsMap);
+    }
+    let deps = depsMap.get(key);
+    if (!deps) {
+        deps = new Set();
+        depsMap.set(key, deps);
+    }
+    deps.add(activeEffect);
+    activeEffect.depsMap = depsMap;
+}
 function trigger(target, key) {
     let depsMap = targetMap.get(target);
     let deps = depsMap === null || depsMap === void 0 ? void 0 : depsMap.get(key);
@@ -77,6 +171,8 @@ function createGetter(isReadonly = false, shallow = false) {
         if (propName === ReactiveFlags.IS_READONLY) {
             return isReadonly;
         }
+        if (!isReadonly)
+            track(target, propName);
         const res = Reflect.get(target, propName);
         if (shallow) {
             return res;
@@ -130,6 +226,56 @@ function readonly(raw) {
 }
 function shallowReadonly(raw) {
     return createActiveObject(raw, shallowReadonlyHandler);
+}
+
+var _RefImpl__value, _RefImpl_rawValue;
+class RefImpl {
+    constructor(value) {
+        _RefImpl__value.set(this, void 0);
+        _RefImpl_rawValue.set(this, void 0);
+        this.__v_isRef = true;
+        __classPrivateFieldSet(this, _RefImpl_rawValue, value, "f");
+        __classPrivateFieldSet(this, _RefImpl__value, convert(value), "f");
+    }
+    get value() {
+        track(this, "value");
+        return __classPrivateFieldGet(this, _RefImpl__value, "f");
+    }
+    set value(newValue) {
+        if (hasChanged(newValue, __classPrivateFieldGet(this, _RefImpl_rawValue, "f"))) {
+            __classPrivateFieldSet(this, _RefImpl_rawValue, newValue, "f");
+            __classPrivateFieldSet(this, _RefImpl__value, convert(newValue), "f");
+            trigger(this, "value");
+        }
+    }
+}
+_RefImpl__value = new WeakMap(), _RefImpl_rawValue = new WeakMap();
+function convert(newValue) {
+    return isObject(newValue) ? reactive(newValue) : newValue;
+}
+function ref(raw) {
+    return new RefImpl(raw);
+}
+function isRef(value) {
+    return !!(value === null || value === void 0 ? void 0 : value.__v_isRef);
+}
+function unRef(value) {
+    return isRef(value) ? value.value : value;
+}
+function proxyRefs(target) {
+    return new Proxy(target, {
+        get(target, key) {
+            return unRef(Reflect.get(target, key));
+        },
+        set(target, key, newValue) {
+            if (isRef(target[key]) && !isRef(newValue)) {
+                return Reflect.set(target[key], "value", newValue);
+            }
+            else {
+                return Reflect.set(target, key, newValue);
+            }
+        },
+    });
 }
 
 function emit(instance, event, ...args) {
@@ -197,6 +343,8 @@ function createComponentInstance(vnode, parent) {
         slots: {},
         provides: parent ? parent.provides : {},
         parent,
+        isMounted: false,
+        subTree: null,
         emit: defaultEmit,
     };
     component.emit = emit.bind(null, component);
@@ -229,7 +377,7 @@ function handleSetupResult(instance, setupResult) {
      * function type result
      */
     if (typeof setupResult === "object") {
-        instance.setupState = setupResult;
+        instance.setupState = proxyRefs(setupResult);
     }
     finishComponentSetup(instance);
 }
@@ -304,43 +452,51 @@ function createRenderer(options) {
     const { createElement: hostCreateElement, patchProps: hostPatchProps, insert: hostInsert, } = options;
     function render(vnode, container, parentComponent) {
         //调用 patch 对虚拟节点进行具体处理
-        patch(vnode, container, parentComponent);
+        patch(null, vnode, container, parentComponent);
     }
-    function patch(vnode, container, parentComponent) {
-        const { type, shapFlag } = vnode;
+    /**
+     * n1: old vnode tree
+     * n2: new vnode tree
+     */
+    function patch(n1, n2, container, parentComponent) {
+        const { type, shapFlag } = n2;
         switch (type) {
             case Fragment: {
-                procescsFragment(vnode, container, parentComponent);
+                procescsFragment(n1, n2, container, parentComponent);
                 break;
             }
             case Text: {
-                procescsText(vnode, container);
+                procescsText(n1, n2, container);
                 break;
             }
             default: {
                 // 根据 vnode 的类型，来决定是处理 component 还是 element
                 if (shapFlag & ShapFlags.ELEMENT) {
-                    procescsElement(vnode, container, parentComponent);
+                    procescsElement(n1, n2, container, parentComponent);
                 }
                 else if (shapFlag & ShapFlags.STATEFUL_COMPONENT) {
-                    processComponent(vnode, container, parentComponent);
+                    processComponent(n1, n2, container, parentComponent);
                 }
             }
         }
     }
-    function procescsText(vnode, container) {
-        const el = (vnode.el = document.createTextNode(vnode.children));
+    function procescsText(n1, n2, container) {
+        const el = (n2.el = document.createTextNode(n2.children));
         container.appendChild(el);
     }
-    function procescsFragment(vnode, container, parentComponent) {
-        mountChildren(vnode, container, parentComponent);
+    function procescsFragment(n1, n2, container, parentComponent) {
+        mountChildren(n2, container, parentComponent);
     }
-    function procescsElement(vnode, container, parentComponent) {
+    function procescsElement(n1, n2, container, parentComponent) {
         /**
          * 主要逻辑有：挂载、更新
          */
-        //初始化流程，目前只关注挂载过程
-        mountElement(vnode, container, parentComponent);
+        if (!n1) {
+            mountElement(n2, container, parentComponent);
+        }
+        else {
+            patchElement(n1, n2);
+        }
     }
     function mountElement(vnode, container, parentComponent) {
         // const el = (vnode.el = document.createElement(vnode.type));
@@ -366,17 +522,22 @@ function createRenderer(options) {
         // container.appendChild(el);
         hostInsert(el, container);
     }
+    function patchElement(n1, n2, container, parentComponent) {
+        console.log("patchElement");
+        console.log("current tree", n2);
+        console.log("prev tree", n1);
+    }
     function mountChildren(vnode, container, parentComponent) {
-        for (const vnodeItem of vnode.children) {
-            patch(vnodeItem, container, parentComponent);
+        for (const v of vnode.children) {
+            patch(null, v, container, parentComponent);
         }
     }
-    function processComponent(vnode, container, parentComponent) {
+    function processComponent(n1, n2, container, parentComponent) {
         /**
          * 主要逻辑有：挂载组件、更新组件
          */
         //初始化流程，目前只关注挂载组件过程
-        mountComponent(vnode, container, parentComponent);
+        mountComponent(n2, container, parentComponent);
     }
     function mountComponent(initialVnode, container, parentComponent) {
         /**
@@ -388,9 +549,23 @@ function createRenderer(options) {
         setupRenderEffect(instance, initialVnode, container, instance);
     }
     function setupRenderEffect(instance, initialVnode, container, parentComponent) {
-        const subTree = instance.render.call(instance.proxy, h);
-        patch(subTree, container, parentComponent);
-        initialVnode.el = subTree.el;
+        effect(() => {
+            if (!instance.isMounted) {
+                const { proxy } = instance;
+                const subTree = (instance.subTree = instance.render.call(proxy, h));
+                patch(null, subTree, container, parentComponent);
+                initialVnode.el = subTree.el;
+                console.log("init", subTree);
+                instance.isMounted = true;
+            }
+            else {
+                const { proxy } = instance;
+                const subTree = instance.render.call(proxy, h);
+                const prevSubTree = instance.subTree;
+                patch(prevSubTree, subTree, container, parentComponent);
+                instance.subTree = subTree;
+            }
+        });
     }
     return {
         createApp: createAppAPI(render),
@@ -422,4 +597,4 @@ function createApp(...args) {
     return renderer.createApp(...args);
 }
 
-export { createApp, createRenderer, createTextVNode, getCurrentInstance, inject, provide, renderSlots };
+export { createApp, createRenderer, createTextVNode, effect, getCurrentInstance, inject, provide, proxyRefs, ref, renderSlots };

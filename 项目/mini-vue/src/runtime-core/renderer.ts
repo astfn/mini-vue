@@ -1,3 +1,4 @@
+import { effect } from "../reactivity";
 import { isObject } from "../shared/index";
 import { ShapFlags } from "../shared/ShapFlags";
 import { createComponentInstance, setupComponent } from "./component";
@@ -14,46 +15,53 @@ export function createRenderer(options) {
 
   function render(vnode, container, parentComponent) {
     //调用 patch 对虚拟节点进行具体处理
-    patch(vnode, container, parentComponent);
+    patch(null, vnode, container, parentComponent);
   }
 
-  function patch(vnode, container, parentComponent) {
-    const { type, shapFlag } = vnode;
+  /**
+   * n1: old vnode tree
+   * n2: new vnode tree
+   */
+  function patch(n1, n2, container, parentComponent) {
+    const { type, shapFlag } = n2;
     switch (type) {
       case Fragment: {
-        procescsFragment(vnode, container, parentComponent);
+        procescsFragment(n1, n2, container, parentComponent);
         break;
       }
       case Text: {
-        procescsText(vnode, container);
+        procescsText(n1, n2, container);
         break;
       }
       default: {
         // 根据 vnode 的类型，来决定是处理 component 还是 element
         if (shapFlag & ShapFlags.ELEMENT) {
-          procescsElement(vnode, container, parentComponent);
+          procescsElement(n1, n2, container, parentComponent);
         } else if (shapFlag & ShapFlags.STATEFUL_COMPONENT) {
-          processComponent(vnode, container, parentComponent);
+          processComponent(n1, n2, container, parentComponent);
         }
       }
     }
   }
 
-  function procescsText(vnode, container) {
-    const el = (vnode.el = document.createTextNode(vnode.children));
+  function procescsText(n1, n2, container) {
+    const el = (n2.el = document.createTextNode(n2.children));
     container.appendChild(el);
   }
 
-  function procescsFragment(vnode, container, parentComponent) {
-    mountChildren(vnode, container, parentComponent);
+  function procescsFragment(n1, n2, container, parentComponent) {
+    mountChildren(n2, container, parentComponent);
   }
 
-  function procescsElement(vnode, container, parentComponent) {
+  function procescsElement(n1, n2, container, parentComponent) {
     /**
      * 主要逻辑有：挂载、更新
      */
-    //初始化流程，目前只关注挂载过程
-    mountElement(vnode, container, parentComponent);
+    if (!n1) {
+      mountElement(n2, container, parentComponent);
+    } else {
+      patchElement(n1, n2, container, parentComponent);
+    }
   }
 
   function mountElement(vnode, container, parentComponent) {
@@ -83,18 +91,24 @@ export function createRenderer(options) {
     hostInsert(el, container);
   }
 
+  function patchElement(n1, n2, container, parentComponent) {
+    console.log("patchElement");
+    console.log("current tree", n2);
+    console.log("prev tree", n1);
+  }
+
   function mountChildren(vnode, container, parentComponent) {
-    for (const vnodeItem of vnode.children) {
-      patch(vnodeItem, container, parentComponent);
+    for (const v of vnode.children) {
+      patch(null, v, container, parentComponent);
     }
   }
 
-  function processComponent(vnode, container, parentComponent) {
+  function processComponent(n1, n2, container, parentComponent) {
     /**
      * 主要逻辑有：挂载组件、更新组件
      */
     //初始化流程，目前只关注挂载组件过程
-    mountComponent(vnode, container, parentComponent);
+    mountComponent(n2, container, parentComponent);
   }
 
   function mountComponent(initialVnode, container, parentComponent) {
@@ -113,9 +127,24 @@ export function createRenderer(options) {
     container,
     parentComponent
   ) {
-    const subTree = instance.render.call(instance.proxy, h);
-    patch(subTree, container, parentComponent);
-    initialVnode.el = subTree.el;
+    effect(() => {
+      if (!instance.isMounted) {
+        const { proxy } = instance;
+        const subTree = (instance.subTree = instance.render.call(proxy, h));
+        patch(null, subTree, container, parentComponent);
+        initialVnode.el = subTree.el;
+
+        console.log("init", subTree);
+
+        instance.isMounted = true;
+      } else {
+        const { proxy } = instance;
+        const subTree = instance.render.call(proxy, h);
+        const prevSubTree = instance.subTree;
+        patch(prevSubTree, subTree, container, parentComponent);
+        instance.subTree = subTree;
+      }
+    });
   }
 
   return {
