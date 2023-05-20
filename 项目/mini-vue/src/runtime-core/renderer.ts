@@ -71,13 +71,7 @@ export function createRenderer(options) {
 
     //props
     Object.entries(props).forEach(([key, value]) => {
-      // if (isOn(key)) {
-      //   const event = key.slice(2).toLocaleLowerCase();
-      //   el.addEventListener(event, value);
-      // } else {
-      //   el.setAttribute(key, value);
-      // }
-      hostPatchProps(el, key, value);
+      hostPatchProps(el, key, null, value);
     });
 
     //children
@@ -87,7 +81,6 @@ export function createRenderer(options) {
       mountChildren(vnode, el, parentComponent);
     }
 
-    // container.appendChild(el);
     hostInsert(el, container);
   }
 
@@ -95,6 +88,31 @@ export function createRenderer(options) {
     console.log("patchElement");
     console.log("current tree", n2);
     console.log("prev tree", n1);
+
+    const el = (n2.el = n1.el);
+
+    const oldProps = n1.props;
+    const newProps = n2.props;
+    patchProps(el, oldProps, newProps);
+  }
+
+  function patchProps(el, oldProps, newProps) {
+    /**
+     * 以 newProps 为基础, 检索 oldProps, 处理以下 case
+     * 1. newProps 与 oldProps 都存在某个 key, 且值不一样 (进行 patch)
+     * 2. newProps 中存在某个 key, 但 oldProps 中不存在 (进行 add)
+     */
+    Object.entries(newProps).forEach(([key, nextProp]) => {
+      const prevProp = oldProps[key];
+      if (prevProp !== nextProp) hostPatchProps(el, key, prevProp, nextProp);
+    });
+    /**
+     * 以 oldProps 为基础, 检索 newProps, 处理以下 case
+     * 1. oldProps 中的某个 key, 在 newProps 中不存在了 (delete)
+     */
+    Object.entries(oldProps).forEach(([key, prevProp]) => {
+      if (!(key in newProps)) hostPatchProps(el, key, prevProp, null);
+    });
   }
 
   function mountChildren(vnode, container, parentComponent) {
