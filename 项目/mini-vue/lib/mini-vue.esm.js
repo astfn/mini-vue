@@ -18,7 +18,7 @@ function createVNode(type, props, children) {
         el: undefined,
     };
     //标记 children 类型
-    if (typeof children === "string") {
+    if (typeof children === "string" || typeof children === "number") {
         vnode.shapFlag |= ShapFlags.TEXT_CHILDREN;
     }
     else if (Array.isArray(children))
@@ -449,9 +449,10 @@ function h(type, props, children) {
 }
 
 function createRenderer(options) {
-    const { createElement: hostCreateElement, patchProps: hostPatchProps, insert: hostInsert, } = options;
+    const { createElement: hostCreateElement, patchProps: hostPatchProps, insert: hostInsert, remove: hostRemove, setElementText: hostSetElementText, } = options;
     function render(vnode, container, parentComponent) {
         //调用 patch 对虚拟节点进行具体处理
+        console.log("render", vnode, container, parentComponent);
         patch(null, vnode, container, parentComponent);
     }
     /**
@@ -485,7 +486,7 @@ function createRenderer(options) {
         container.appendChild(el);
     }
     function procescsFragment(n1, n2, container, parentComponent) {
-        mountChildren(n2, container, parentComponent);
+        mountChildren(n2.children, container, parentComponent);
     }
     function procescsElement(n1, n2, container, parentComponent) {
         /**
@@ -495,7 +496,7 @@ function createRenderer(options) {
             mountElement(n2, container, parentComponent);
         }
         else {
-            patchElement(n1, n2);
+            patchElement(n1, n2, container, parentComponent);
         }
     }
     function mountElement(vnode, container, parentComponent) {
@@ -511,7 +512,7 @@ function createRenderer(options) {
             el.innerText = children;
         }
         else if (shapFlag & ShapFlags.ARRAY_CHILDREN) {
-            mountChildren(vnode, el, parentComponent);
+            mountChildren(vnode.children, el, parentComponent);
         }
         hostInsert(el, container);
     }
@@ -520,9 +521,40 @@ function createRenderer(options) {
         console.log("current tree", n2);
         console.log("prev tree", n1);
         const el = (n2.el = n1.el);
+        patchChildren(n1, n2, container, parentComponent);
         const oldProps = n1.props;
         const newProps = n2.props;
         patchProps(el, oldProps, newProps);
+    }
+    function unmountChildren(children) {
+        for (let i = 0; i < children.length; i++) {
+            const el = children[i].el;
+            hostRemove(el);
+        }
+    }
+    function patchChildren(n1, n2, container, parentComponent) {
+        const { shapFlag: prevShapFlag, children: c1 } = n1;
+        const { shapFlag, children: c2 } = n2;
+        if (shapFlag & ShapFlags.TEXT_CHILDREN) {
+            if (prevShapFlag & ShapFlags.ARRAY_CHILDREN) {
+                unmountChildren(c1);
+                hostSetElementText(n2.el, c2);
+            }
+            c1 !== c2 && hostSetElementText(n2.el, c2);
+        }
+        else {
+            if (prevShapFlag & ShapFlags.TEXT_CHILDREN) {
+                hostSetElementText(n2.el, "");
+                mountChildren(c2, n2.el, parentComponent);
+            }
+            else {
+                /**
+                 * 无脑实现版本，后续需要经典的双端对比算法来打补丁
+                 */
+                unmountChildren(c1);
+                mountChildren(c2, n2.el, parentComponent);
+            }
+        }
     }
     function patchProps(el, oldProps, newProps) {
         /**
@@ -544,8 +576,8 @@ function createRenderer(options) {
                 hostPatchProps(el, key, prevProp, null);
         });
     }
-    function mountChildren(vnode, container, parentComponent) {
-        for (const v of vnode.children) {
+    function mountChildren(children, container, parentComponent) {
+        for (const v of children) {
             patch(null, v, container, parentComponent);
         }
     }
@@ -610,10 +642,21 @@ function patchProps(el, key, prevProp, nextProp) {
 function insert(el, container) {
     container.appendChild(el);
 }
+function remove(child) {
+    const parent = child.parentNode;
+    if (parent) {
+        parent.removeChild(child);
+    }
+}
+function setElementText(el, text) {
+    el.textContent = text;
+}
 const renderer = createRenderer({
     createElement,
     patchProps,
     insert,
+    remove,
+    setElementText,
 });
 function createApp(...args) {
     return renderer.createApp(...args);

@@ -12,7 +12,7 @@ export function createVNode(type, props?, children?) {
     el: undefined,
   };
   //标记 children 类型
-  if (typeof children === "string") {
+  if (typeof children === "string" || typeof children === "number") {
     vnode.shapFlag |= ShapFlags.TEXT_CHILDREN;
   } else if (Array.isArray(children))
     vnode.shapFlag |= ShapFlags.ARRAY_CHILDREN;

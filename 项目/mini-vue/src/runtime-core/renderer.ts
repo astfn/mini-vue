@@ -11,10 +11,13 @@ export function createRenderer(options) {
     createElement: hostCreateElement,
     patchProps: hostPatchProps,
     insert: hostInsert,
+    remove: hostRemove,
+    setElementText: hostSetElementText,
   } = options;
 
   function render(vnode, container, parentComponent) {
     //调用 patch 对虚拟节点进行具体处理
+    console.log("render", vnode, container, parentComponent);
     patch(null, vnode, container, parentComponent);
   }
 
@@ -50,7 +53,7 @@ export function createRenderer(options) {
   }
 
   function procescsFragment(n1, n2, container, parentComponent) {
-    mountChildren(n2, container, parentComponent);
+    mountChildren(n2.children, container, parentComponent);
   }
 
   function procescsElement(n1, n2, container, parentComponent) {
@@ -78,7 +81,7 @@ export function createRenderer(options) {
     if (shapFlag & ShapFlags.TEXT_CHILDREN) {
       el.innerText = children;
     } else if (shapFlag & ShapFlags.ARRAY_CHILDREN) {
-      mountChildren(vnode, el, parentComponent);
+      mountChildren(vnode.children, el, parentComponent);
     }
 
     hostInsert(el, container);
@@ -91,9 +94,41 @@ export function createRenderer(options) {
 
     const el = (n2.el = n1.el);
 
+    patchChildren(n1, n2, container, parentComponent);
+
     const oldProps = n1.props;
     const newProps = n2.props;
     patchProps(el, oldProps, newProps);
+  }
+
+  function unmountChildren(children) {
+    for (let i = 0; i < children.length; i++) {
+      const el = children[i].el;
+      hostRemove(el);
+    }
+  }
+
+  function patchChildren(n1, n2, container, parentComponent) {
+    const { shapFlag: prevShapFlag, children: c1 } = n1;
+    const { shapFlag, children: c2 } = n2;
+    if (shapFlag & ShapFlags.TEXT_CHILDREN) {
+      if (prevShapFlag & ShapFlags.ARRAY_CHILDREN) {
+        unmountChildren(c1);
+        hostSetElementText(n2.el, c2);
+      }
+      c1 !== c2 && hostSetElementText(n2.el, c2);
+    } else {
+      if (prevShapFlag & ShapFlags.TEXT_CHILDREN) {
+        hostSetElementText(n2.el, "");
+        mountChildren(c2, n2.el, parentComponent);
+      } else {
+        /**
+         * 无脑实现版本，后续需要经典的双端对比算法来打补丁
+         */
+        unmountChildren(c1);
+        mountChildren(c2, n2.el, parentComponent);
+      }
+    }
   }
 
   function patchProps(el, oldProps, newProps) {
@@ -115,8 +150,8 @@ export function createRenderer(options) {
     });
   }
 
-  function mountChildren(vnode, container, parentComponent) {
-    for (const v of vnode.children) {
+  function mountChildren(children, container, parentComponent) {
+    for (const v of children) {
       patch(null, v, container, parentComponent);
     }
   }
