@@ -14,6 +14,7 @@ function createVNode(type, props, children) {
         type,
         props,
         children,
+        key: props === null || props === void 0 ? void 0 : props.key,
         shapFlag: getShapFlag(type),
         el: undefined,
     };
@@ -551,8 +552,50 @@ function createRenderer(options) {
                 /**
                  * 无脑实现版本，后续需要经典的双端对比算法来打补丁
                  */
-                unmountChildren(c1);
-                mountChildren(c2, n2.el, parentComponent);
+                // unmountChildren(c1);
+                // mountChildren(c2, n2.el, parentComponent);
+                patchKeyedChildren(c1, c2, n2.el, parentComponent);
+            }
+        }
+    }
+    function patchKeyedChildren(c1, c2, container, parentComponent) {
+        let i = 0;
+        let e1 = c1.length - 1;
+        let e2 = c2.length - 1;
+        function isSomeVNodeType(n1, n2) {
+            return n1.type == n2.type && n1.key == n2.key;
+        }
+        //自左向右对比
+        while (i <= e1 && i <= e2) {
+            const n1 = c1[i];
+            const n2 = c2[i];
+            if (isSomeVNodeType(n1, n2)) {
+                patch(n1, n2, container, parentComponent);
+                i++;
+            }
+            else {
+                break;
+            }
+        }
+        //自右向左对比
+        while (i <= e1 && i <= e2) {
+            const n1 = c1[e1];
+            const n2 = c2[e2];
+            if (isSomeVNodeType(n1, n2)) {
+                patch(n1, n2, container, parentComponent);
+                e1--;
+                e2--;
+            }
+            else {
+                break;
+            }
+        }
+        //恰好右半部分是处理区间--只需新增节点
+        if (i > e1) {
+            while (e2 >= i) {
+                const n2 = c2[e2];
+                patch(null, n2, container, parentComponent);
+                e2--;
             }
         }
     }
