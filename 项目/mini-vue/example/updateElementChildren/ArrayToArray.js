@@ -6,8 +6,8 @@ import { useState } from "./hooks.js";
  *   并且只需新增或删除节点
  */
 ////1.1 new children 比 old children 长 (新增节点)
-const oldArray = ["A", "B"];
-const newArray = ["A", "B", "D", "E"];
+// const oldArray = ["A", "B"];
+// const newArray = ["A", "B", "D", "E"];
 
 //// 1.2 new children 比 old children 短 (删除节点)
 // const oldArray = ["A", "B", "D", "E"];
@@ -23,8 +23,8 @@ const newArray = ["A", "B", "D", "E"];
 // const newArray = ["D", "E", "B", "C"];
 
 //// 2.2 new children 比 old children 短 (删除节点)
-// const oldArray = ["D", "E", "B", "C"];
-// const newArray = ["B", "C"];
+const oldArray = ["D", "E", "B", "C"];
+const newArray = ["B", "C"];
 
 export default {
   setup() {

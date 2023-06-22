@@ -19,8 +19,12 @@ function patchProps(el, key, prevProp, nextProp) {
   }
 }
 
-function insert(el, container) {
-  container.appendChild(el);
+function insert(child, container, anchor) {
+  if (anchor) {
+    container.insertBefore(child, anchor);
+  } else {
+    container.appendChild(child);
+  }
 }
 
 function remove(child) {
