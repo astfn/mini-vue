@@ -171,7 +171,7 @@ export function createRenderer(options) {
       }
     }
 
-    //恰好右半部分是处理区间--只需新增节点
+    //恰好左/右半部分是处理区间--只需新增节点
     if (i > e1) {
       while (e2 >= i) {
         const n2 = c2[e2];
@@ -180,13 +180,65 @@ export function createRenderer(options) {
         e2--;
       }
     }
-
-    //恰好右半部分是处理区间--只需删除节点
-    if (i > e2) {
+    //恰好左/右半部分是处理区间--只需删除节点
+    else if (i > e2) {
       while (e1 >= i) {
         const n1 = c1[e1];
         hostRemove(n1.el);
         e1--;
+      }
+    } else {
+      /**
+       * 删除节点
+       */
+      const s1 = i;
+      const s2 = i;
+
+      const toBePatchChild = e2 - s2 + 1;
+      let patched = 0;
+      // Map<newVNode.key, newVNodeIndex>
+      const keyToNewIndexMap = new Map();
+      for (let i = s2; i <= e2; i++) {
+        const nextNode = c2[i];
+        keyToNewIndexMap.set(nextNode.key, i);
+      }
+
+      // 记录在 newChildren 中匹配到的节点 index
+      let newIndex;
+      // 遍历 oldChildren
+      for (let i = s1; i <= e1; i++) {
+        const prevNode = c1[i];
+        if (patched >= toBePatchChild) {
+          hostRemove(prevNode.el);
+          continue;
+        }
+
+        newIndex = undefined;
+        // 从 newChildren 中匹配 oldChildNode
+        if (prevNode.key != null) {
+          newIndex = keyToNewIndexMap.get(prevNode.key);
+        } else {
+          for (let j = s2; j <= e2; j++) {
+            if (isSomeVNodeType(prevNode, c2[j])) {
+              newIndex = j;
+              break;
+            }
+          }
+        }
+
+        //匹配到，则 patch；反之 remove
+        if (newIndex === undefined) {
+          hostRemove(prevNode.el);
+        } else {
+          patch(
+            prevNode,
+            c2[newIndex],
+            container,
+            parentComponent,
+            parentAnchor
+          );
+          patched++;
+        }
       }
     }
   }

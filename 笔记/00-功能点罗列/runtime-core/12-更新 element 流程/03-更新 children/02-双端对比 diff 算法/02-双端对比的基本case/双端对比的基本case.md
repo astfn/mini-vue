@@ -441,3 +441,66 @@ function insert(child, container, anchor) {
 
 <img src="双端对比的基本case.assets/06-自右向左对比-只需删除节点-指针情况.png" alt="06-自右向左对比-只需删除节点-指针情况" style="zoom:80%;" />
 
+**patchKeyedChildren 总体代码：**
+
+```
+  function patchKeyedChildren(
+    c1,
+    c2,
+    container,
+    parentComponent,
+    parentAnchor
+  ) {
+    let i = 0;
+    let e1 = c1.length - 1;
+    let e2 = c2.length - 1;
+
+    function isSomeVNodeType(n1, n2) {
+      return n1.type == n2.type && n1.key == n2.key;
+    }
+
+    //自左向右对比
+    while (i <= e1 && i <= e2) {
+      const n1 = c1[i];
+      const n2 = c2[i];
+      if (isSomeVNodeType(n1, n2)) {
+        patch(n1, n2, container, parentComponent, parentAnchor);
+        i++;
+      } else {
+        break;
+      }
+    }
+    //自右向左对比
+    while (i <= e1 && i <= e2) {
+      const n1 = c1[e1];
+      const n2 = c2[e2];
+      if (isSomeVNodeType(n1, n2)) {
+        patch(n1, n2, container, parentComponent, parentAnchor);
+        e1--;
+        e2--;
+      } else {
+        break;
+      }
+    }
+
+    //恰好左/右半部分是处理区间--只需新增节点
+    if (i > e1) {
+      while (e2 >= i) {
+        const n2 = c2[e2];
+        const anchor = e2 + 1 >= c2.length ? null : c2[e2 + 1].el;
+        patch(null, n2, container, parentComponent, anchor);
+        e2--;
+      }
+    }
+
+    //恰好左/右半部分是处理区间--只需删除节点
+    if (i > e2) {
+      while (e1 >= i) {
+        const n1 = c1[e1];
+        hostRemove(n1.el);
+        e1--;
+      }
+    }
+  }
+```
+
