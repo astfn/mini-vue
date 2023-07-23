@@ -8,18 +8,19 @@ function isTracking() {
 }
 
 function cleanupEffect(effect: ReactiveEffect) {
-  effect.depsMap?.forEach((dep) => dep.delete(effect));
+  effect.deps?.forEach((dep) => dep.delete(effect));
 }
 
 export class ReactiveEffect {
   #fn: Function | undefined;
   scheduler: Function | undefined;
-  depsMap: Map<string | symbol, Set<ReactiveEffect>> | undefined;
+  deps: Array<Set<ReactiveEffect>>;
   isCleared: boolean = false;
   onStop: Function | undefined;
 
   constructor(fn: Function, options?: EffectOptions) {
     this.#fn = fn;
+    this.deps = [];
     options && extend(this, options);
   }
   run() {
@@ -72,8 +73,11 @@ export function track(target, key: string | symbol) {
     deps = new Set();
     depsMap.set(key, deps);
   }
-  deps.add(activeEffect!);
-  activeEffect!.depsMap = depsMap;
+
+  if (!deps.has(activeEffect!)) {
+    deps.add(activeEffect!);
+    activeEffect!.deps.push(deps);
+  }
 }
 
 export function trigger(target, key: string | symbol) {
